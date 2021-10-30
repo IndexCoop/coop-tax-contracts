@@ -1,0 +1,5 @@
+{
+    "solidity.compileUsingRemoteVersion": "v0.6.10+commit.00c0fcaf",
+    "solidity.packageDefaultDependenciesDirectory": "lib",
+    "solidity.packageDefaultDependenciesContractsDirectory": "src"
+}
