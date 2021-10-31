@@ -110,7 +110,7 @@ contract ApeRebalanceExtension is GIMExtension {
         revert("only democratically elected shitcoins allowed");
     }
 
-    function _getVotes(address _voter) internal returns (uint256) {
+    function _getVotes(address _voter) internal view returns (uint256) {
         uint256 bal = owlNft.balanceOf(_voter);
         
         uint256 totalVotes;
@@ -122,7 +122,7 @@ contract ApeRebalanceExtension is GIMExtension {
         return totalVotes;
     }
 
-    function _isEpochOver() internal returns (bool) {
+    function _isEpochOver() internal view returns (bool) {
         return block.timestamp >= currentEpochStart.add(epochLength);
     }
 }
