@@ -59,8 +59,8 @@ contract ApeRebalanceExtension is GIMExtension {
             if (votes[_components[i]] == 0) {
                 possibleComponents.push(_components[i]);
             }
-            votes[_components[i]] = _votes[i];
-            sumVotes.add(_votes[i]);
+            votes[_components[i]] = votes[_components[i]].add(_votes[i]);
+            sumVotes = sumVotes.add(_votes[i]);
         }
 
         require(sumVotes <= _getVotes(msg.sender), "too many votes used");

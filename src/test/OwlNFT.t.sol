@@ -42,12 +42,16 @@ contract OwlNFTTest is DSTest {
 
         nft.batchMint(to, ranks);
 
-        assertEq(nft.getVotes(0), 100);
-        assertEq(nft.getVotes(1), 75);
-        assertEq(nft.getVotes(2), 50);
+        assertEq(nft.getVotes(0), 100 ether);
+        assertEq(nft.getVotes(1), 75 ether);
+        assertEq(nft.getVotes(2), 50 ether);
 
         // should revert
         (bool success, ) = address(nft).call(abi.encodeWithSelector(nft.getVotes.selector, 3));
         assertTrue(!success);
+    }
+
+    function testFail_getVotesInvalidToken() public view {
+        nft.getVotes(0);
     }
 }

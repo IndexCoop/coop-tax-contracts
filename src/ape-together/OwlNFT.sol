@@ -29,8 +29,10 @@ contract OwlNFT is ERC721, Ownable {
 
         OwlRank rank = ranks[_id];
 
-        if (rank == OwlRank.BRONZE) return 50;
-        if (rank == OwlRank.SILVER) return 75;
-        if (rank == OwlRank.GOLD) return 100;
+        if (rank == OwlRank.BRONZE) return 50 ether;
+        if (rank == OwlRank.SILVER) return 75 ether;
+        if (rank == OwlRank.GOLD) return 100 ether;
+
+        return 0;
     }
 }
