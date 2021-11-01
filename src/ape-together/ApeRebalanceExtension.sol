@@ -91,11 +91,33 @@ contract ApeRebalanceExtension is GIMExtension {
             units[i] = _setValue.preciseMul(weights[i]).preciseDiv(_componentPrices[i]);
         }
 
+        address[] memory currentComponents = setToken.getComponents();
+        address[] memory removedComponents = new address[](currentComponents.length);
+        uint256 numRemoved;
+        for (uint256 i = 0; i < currentComponents.length; i++) {
+            if (!finalComponents.contains(currentComponents[i])) {
+                removedComponents[numRemoved] = currentComponents[i];
+                numRemoved = numRemoved.add(1);
+            }
+        }
+
+        uint256 finalLength = finalComponents.length.add(numRemoved);
+        address[] memory finalComponentsComplete = new address[](finalLength);
+        uint256[] memory finalUnitsComplete = new uint256[](finalLength);
+        for (uint256 i = 0; i < finalComponents.length; i++) {
+            finalComponentsComplete[i] = finalComponents[i];
+            finalUnitsComplete[i] = units[i];
+        }
+        for (uint256 i = finalComponents.length; i < finalLength; i++) {
+            finalComponentsComplete[i] = removedComponents[i.sub(finalComponents.length)];
+        }
+        
+
         (
             address[] memory newComponents,
             uint256[] memory newComponentsTargetUnits,
             uint256[] memory oldComponentsTargetUnits
-        ) = _sortNewAndOldComponents(finalComponents, units);
+        ) = _sortNewAndOldComponents(finalComponentsComplete, finalUnitsComplete);
 
         // since we fix the position multiplier to 1 we cannot have a streaming fee in any set that uses this
         _startRebalance(newComponents, newComponentsTargetUnits, oldComponentsTargetUnits, 1 ether);

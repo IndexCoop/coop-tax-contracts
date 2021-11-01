@@ -13,8 +13,11 @@ import { SetFixture } from "../utils/SetFixture.sol";
 
 import { IBaseManager } from "indexcoop/contracts/interfaces/IBaseManager.sol";
 import { ISetToken } from "indexcoop/contracts/interfaces/ISetToken.sol";
+import { ISetToken as ISetTokenSet } from "setprotocol/contracts/interfaces/ISetToken.sol";
 import { IGeneralIndexModule } from "indexcoop/contracts/interfaces/IGeneralIndexModule.sol";
 import { IHevm } from "../utils/IHevm.sol";
+
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 
 contract Voter {
@@ -88,6 +91,8 @@ contract ApeRebalanceExtensionTest is DSTest {
             1000,
             10
         );
+
+        baseManager.addExtension(address(apeExtension));
 
         // setup voters
         voterA = new Voter(apeExtension);
@@ -192,5 +197,44 @@ contract ApeRebalanceExtensionTest is DSTest {
 
         assertEq(finalComponents[1], components[0]);
         assertEq(weights[1], uint(30 ether).preciseDiv(90 ether));
+    }
+
+    function test_startRebalance() public {
+        address[] memory components = new address[](2);
+        components[0] = address(0x1);
+        components[1] = address(0x2);
+
+        uint256[] memory votes = new uint256[](2);
+        votes[0] = 30 ether;
+        votes[1] = 60 ether;
+
+        voterA.vote(components, votes);
+
+        uint256 setValue = 50 ether;
+        address[] memory finalComponents = new address[](2);
+        finalComponents[0] = address(0x2);
+        finalComponents[1] = address(0x1);
+        uint256[] memory prices = new uint256[](2);
+        prices[0] = 17 ether;
+        prices[1] = 3.1415926535 ether;
+
+        apeExtension.startRebalance(setValue, finalComponents, prices);
+
+        (uint256 firstUnits, , , , ,) = setFixture.generalIndexModule().executionInfo(
+            ISetTokenSet(address(setToken)),
+            IERC20(finalComponents[0])
+        );
+
+        uint256 expectedFirstUnits = uint(60 ether).preciseDiv(90 ether).preciseMul(setValue).preciseDiv(prices[0]);
+        assertEq(firstUnits, expectedFirstUnits);
+
+        (uint256 secondUnits, , , , ,) = setFixture.generalIndexModule().executionInfo(
+            ISetTokenSet(address(setToken)),
+            IERC20(finalComponents[1])
+        );
+
+        uint256 expectedSecondUnits = uint(30 ether).preciseDiv(90 ether).preciseMul(setValue).preciseDiv(prices[1]);
+        assertEq(secondUnits, expectedSecondUnits);
+
     }
 }
