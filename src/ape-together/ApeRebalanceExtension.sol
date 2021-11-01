@@ -5,10 +5,15 @@ pragma experimental ABIEncoderV2;
 import { GIMExtension } from "indexcoop/contracts/adapters/GIMExtension.sol";
 import { IBaseManager } from "indexcoop/contracts/interfaces/IBaseManager.sol";
 import { IGeneralIndexModule } from "indexcoop/contracts/interfaces/IGeneralIndexModule.sol";
+import { PreciseUnitMath } from "indexcoop/contracts/lib/PreciseUnitMath.sol";
+
+import { SafeCast } from "@openzeppelin/contracts/utils/SafeCast.sol";
 
 import { OwlNFT } from "./OwlNFT.sol";
 
 contract ApeRebalanceExtension is GIMExtension {
+    using PreciseUnitMath for uint256;
+    using SafeCast for uint256;
 
     uint256 public epochLength;
     uint256 public  currentEpochStart;
@@ -66,34 +71,30 @@ contract ApeRebalanceExtension is GIMExtension {
         require(sumVotes <= _getVotes(msg.sender), "too many votes used");
     }
 
-    function startRebalance() external onlyOperator {
-        // forgive me father for I have sinned with this selection sort
-        address[] memory possibleLeft = possibleComponents;
-        address[] memory finalComponents = new address[](maxComponents);
-        for (uint256 i = 0; i < maxComponents; i++) {
-            uint256 max;
-            uint256 maxIndex;
-            for (uint256 j = 0; j < possibleLeft.length; j++) {
-                uint256 currentVotes = votes[possibleLeft[j]];
-                if (currentVotes > max) {
-                    max = currentVotes;
-                    maxIndex = j;
-                }
-            }
-            finalComponents[i] = possibleLeft[maxIndex];
-            (possibleLeft,) = possibleLeft.pop(maxIndex);
-        }
+    function startRebalance(
+        uint256 _setValue,
+        address[] memory _components,
+        uint256[] memory _componentPrices
+    ) external onlyOperator {
 
-        uint256[] memory finalUnits = new uint256[](maxComponents);
-        for (uint256 i = 0; i < maxComponents; i++) {
-            finalUnits[i] = votes[finalComponents[i]];
+        (address[] memory finalComponents, uint256[] memory weights) = _getWeights();
+
+        require(_components.length == finalComponents.length, "length mismatch");
+        require(_components.length == _componentPrices.length, "length mismatch");
+
+        uint256[] memory units = new uint256[](_components.length);
+        for (uint256 i = 0; i < _components.length; i++) {
+            require(finalComponents[i] == _components[i], "component mismatch");
+
+            // (weight * total) / price
+            units[i] = _setValue.preciseMul(weights[i]).preciseDiv(_componentPrices[i]);
         }
 
         (
             address[] memory newComponents,
             uint256[] memory newComponentsTargetUnits,
             uint256[] memory oldComponentsTargetUnits
-        ) = _sortNewAndOldComponents(finalComponents, finalUnits);
+        ) = _sortNewAndOldComponents(finalComponents, units);
 
         // since we fix the position multiplier to 1 we cannot have a streaming fee in any set that uses this
         _startRebalance(newComponents, newComponentsTargetUnits, oldComponentsTargetUnits, 1 ether);
@@ -125,5 +126,36 @@ contract ApeRebalanceExtension is GIMExtension {
 
     function _isEpochOver() internal view returns (bool) {
         return block.timestamp >= currentEpochStart.add(epochLength);
+    }
+
+    function _getWeights() internal view returns (address[] memory components, uint256[] memory weights) {
+        // forgive me father for I have sinned with this selection sort
+        address[] memory possibleLeft = possibleComponents;
+        components = new address[](maxComponents);
+        for (uint256 i = 0; i < maxComponents; i++) {
+            uint256 max;
+            uint256 maxIndex;
+            for (uint256 j = 0; j < possibleLeft.length; j++) {
+                uint256 currentVotes = votes[possibleLeft[j]];
+                if (currentVotes > max) {
+                    max = currentVotes;
+                    maxIndex = j;
+                }
+            }
+            components[i] = possibleLeft[maxIndex];
+            (possibleLeft,) = possibleLeft.pop(maxIndex);
+        }
+
+        uint256[] memory finalVotes = new uint256[](maxComponents);
+        uint256 sumVotes;
+        for (uint256 i = 0; i < maxComponents; i++) {
+            uint256 currentVotes = votes[components[i]];
+            finalVotes[i] = currentVotes;
+            sumVotes = sumVotes.add(currentVotes);
+        }
+
+        for (uint256 i = 0; i < maxComponents; i++) {
+            weights[i] = finalVotes[i].preciseDiv(sumVotes);
+        }
     }
 }
