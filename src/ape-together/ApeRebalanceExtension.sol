@@ -8,6 +8,7 @@ import { IGeneralIndexModule } from "indexcoop/contracts/interfaces/IGeneralInde
 import { PreciseUnitMath } from "indexcoop/contracts/lib/PreciseUnitMath.sol";
 
 import { SafeCast } from "@openzeppelin/contracts/utils/SafeCast.sol";
+import { Math } from "@openzeppelin/contracts/math/Math.sol";
 
 import { OwlNFT } from "./OwlNFT.sol";
 
@@ -112,6 +113,10 @@ contract ApeRebalanceExtension is GIMExtension {
         revert("only democratically elected shitcoins allowed");
     }
 
+    function getWeights() external view returns (address[] memory, uint256[] memory) {
+        return _getWeights();
+    }
+
     function _getVotes(address _voter) internal view returns (uint256) {
         uint256 bal = owlNft.balanceOf(_voter);
         
@@ -129,10 +134,13 @@ contract ApeRebalanceExtension is GIMExtension {
     }
 
     function _getWeights() internal view returns (address[] memory components, uint256[] memory weights) {
-        // forgive me father for I have sinned with this selection sort
+        
         address[] memory possibleLeft = possibleComponents;
-        components = new address[](maxComponents);
-        for (uint256 i = 0; i < maxComponents; i++) {
+        uint256 numComponents = Math.min(maxComponents, possibleComponents.length);
+        components = new address[](numComponents);
+
+        // forgive me father for I have sinned with this selection sort
+        for (uint256 i = 0; i < numComponents; i++) {
             uint256 max;
             uint256 maxIndex;
             for (uint256 j = 0; j < possibleLeft.length; j++) {
@@ -146,15 +154,16 @@ contract ApeRebalanceExtension is GIMExtension {
             (possibleLeft,) = possibleLeft.pop(maxIndex);
         }
 
-        uint256[] memory finalVotes = new uint256[](maxComponents);
+        uint256[] memory finalVotes = new uint256[](numComponents);
         uint256 sumVotes;
-        for (uint256 i = 0; i < maxComponents; i++) {
+        for (uint256 i = 0; i < numComponents; i++) {
             uint256 currentVotes = votes[components[i]];
             finalVotes[i] = currentVotes;
             sumVotes = sumVotes.add(currentVotes);
         }
 
-        for (uint256 i = 0; i < maxComponents; i++) {
+        weights = new uint256[](numComponents);
+        for (uint256 i = 0; i < numComponents; i++) {
             weights[i] = finalVotes[i].preciseDiv(sumVotes);
         }
     }

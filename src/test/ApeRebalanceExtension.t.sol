@@ -5,6 +5,7 @@ import "ds-test/test.sol";
 
 import { BaseManagerV2 } from "indexcoop/contracts/manager/BaseManagerV2.sol";
 import { StandardTokenMock } from "indexcoop/contracts/mocks/StandardTokenMock.sol";
+import { PreciseUnitMath } from "indexcoop/contracts/lib/PreciseUnitMath.sol";
 
 import { ApeRebalanceExtension } from "../ape-together/ApeRebalanceExtension.sol";
 import { OwlNFT } from "../ape-together/OwlNFT.sol";
@@ -43,6 +44,7 @@ contract Voter {
 }
 
 contract ApeRebalanceExtensionTest is DSTest {
+    using PreciseUnitMath for uint256;
 
     IHevm constant hevm = IHevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
 
@@ -170,5 +172,25 @@ contract ApeRebalanceExtensionTest is DSTest {
         votes[1] = 30 ether;
 
         voterA.vote(components, votes);
+    }
+
+    function test_getWeights() public {
+        address[] memory components = new address[](2);
+        components[0] = address(0x1);
+        components[1] = address(0x2);
+
+        uint256[] memory votes = new uint256[](2);
+        votes[0] = 30 ether;
+        votes[1] = 60 ether;
+
+        voterA.vote(components, votes);
+
+        (address[] memory finalComponents, uint256[] memory weights) = apeExtension.getWeights();
+
+        assertEq(finalComponents[0], components[1]);
+        assertEq(weights[0], uint(60 ether).preciseDiv(90 ether));
+
+        assertEq(finalComponents[1], components[0]);
+        assertEq(weights[1], uint(30 ether).preciseDiv(90 ether));
     }
 }
