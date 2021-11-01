@@ -99,13 +99,14 @@ contract ApeRebalanceExtension is GIMExtension {
         _startRebalance(newComponents, newComponentsTargetUnits, oldComponentsTargetUnits, 1 ether);
     }
 
-    function startRebalanceWithUnits(
-        address[] memory _components,
-        uint256[] memory _targetUnits,
-        uint256 _positionMultiplier
+    // TODO: fix override
+    function startRebalanceWithUnitsOverride(
+        address[] memory /* _components */,
+        uint256[] memory /* _targetUnits */,
+        uint256 /* _positionMultiplier */
     )
         external
-        override
+        pure
     {
         revert("only democratically elected shitcoins allowed");
     }

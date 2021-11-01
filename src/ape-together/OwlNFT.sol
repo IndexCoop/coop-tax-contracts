@@ -24,6 +24,9 @@ contract OwlNFT is ERC721, Ownable {
     }
 
     function getVotes(uint256 _id) external view returns (uint256) {
+
+        require(_id < currentId, "invalid id");
+
         OwlRank rank = ranks[_id];
 
         if (rank == OwlRank.BRONZE) return 50;
