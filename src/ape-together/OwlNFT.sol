@@ -11,9 +11,18 @@ contract OwlNFT is ERC721, Ownable {
     uint256 currentId;
     mapping(uint256 => OwlRank) ranks;
 
+    /**
+     * Sets token name and symbol
+     */
     constructor() public ERC721("OwlNFT", "OWL") {}
 
-    function batchMint(address[] memory _to, OwlRank[] memory _ranks) external {
+    /**
+     * ONLY OWNER: Batch mints NFTs
+     *
+     * @param _to       array of addresses to mint to
+     * @param _ranks    owl ranks for each of the NFTs
+     */
+    function batchMint(address[] memory _to, OwlRank[] memory _ranks) external onlyOwner {
         require(_to.length == _ranks.length, "length mismatch");
 
         for (uint256 i = 0; i < _to.length; i++) {
@@ -23,6 +32,13 @@ contract OwlNFT is ERC721, Ownable {
         }
     }
 
+    /**
+     * Gets the votes for the NFT. Gold owls get 100 votes, solver 75, and bronze
+     * 50.
+     *
+     * @param _id           nft id
+     * @return uint256      number of votes the id
+     */
     function getVotes(uint256 _id) external view returns (uint256) {
 
         require(_id < currentId, "invalid id");
