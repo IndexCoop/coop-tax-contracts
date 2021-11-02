@@ -260,4 +260,16 @@ contract ApeRebalanceExtensionTest is DSTest {
         assertEq(rebalComponents.length, 0);
         assertEq(weights.length, 0);
     }
+
+    function testFail_startRebalanceWithUnits() public {
+        address[] memory components = new address[](2);
+        components[0] = address(0x1);
+        components[1] = address(0x2);
+
+        uint256[] memory units = new uint256[](2);
+        units[0] = 30 ether;
+        units[1] = 60 ether;
+
+        apeExtension.startRebalanceWithUnits(components, units, 1 ether);
+    }
 }
