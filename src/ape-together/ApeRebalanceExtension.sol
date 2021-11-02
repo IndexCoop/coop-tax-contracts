@@ -79,15 +79,7 @@ contract ApeRebalanceExtension is GIMExtension {
      */
     function vote(address[] memory _components, uint256[] memory _votes) external {
         require(_components.length == _votes.length, "length mismatch");
-
-        if (_isEpochOver()) {
-            currentEpochStart = currentEpochStart.add(epochLength);
-
-            for (uint256 i = 0; i < possibleComponents.length; i++) {
-                votes[possibleComponents[i]] = 0;
-            }
-            delete possibleComponents;
-        }
+        require(!_isEpochOver(), "voting period ended");
 
         require(lastEpochVoted[msg.sender] != currentEpochStart, "already voted");
         lastEpochVoted[msg.sender] = currentEpochStart;
@@ -163,6 +155,13 @@ contract ApeRebalanceExtension is GIMExtension {
 
         // since we fix the position multiplier to 1 we cannot have a streaming fee in any set that uses this
         _startRebalance(newComponents, newComponentsTargetUnits, oldComponentsTargetUnits, 1 ether);
+
+        // set up for next epoch    
+        currentEpochStart = block.timestamp;
+        for (uint256 i = 0; i < possibleComponents.length; i++) {
+            votes[possibleComponents[i]] = 0;
+        }
+        delete possibleComponents;
     }
 
     /**

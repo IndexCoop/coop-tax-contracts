@@ -179,6 +179,22 @@ contract ApeRebalanceExtensionTest is DSTest {
         voterA.vote(components, votes);
     }
 
+    function testFail_voteEpochOver() public {
+        address[] memory components = new address[](2);
+        components[0] = address(0x1);
+        components[1] = address(0x2);
+
+        uint256[] memory votes = new uint256[](2);
+        votes[0] = 70 ether;
+        votes[1] = 30 ether;
+
+        voterA.vote(components, votes);
+
+        hevm.warp(100000);
+
+        voterA.vote(components, votes);
+    }
+
     function test_getWeights() public {
         address[] memory components = new address[](2);
         components[0] = address(0x1);
@@ -236,5 +252,12 @@ contract ApeRebalanceExtensionTest is DSTest {
         uint256 expectedSecondUnits = uint(30 ether).preciseDiv(90 ether).preciseMul(setValue).preciseDiv(prices[1]);
         assertEq(secondUnits, expectedSecondUnits);
 
+
+        // check that new epoch has begun and old state is cleared out
+        (address[] memory rebalComponents, uint256[] memory weights) = apeExtension.getWeights();
+
+        assertEq(apeExtension.currentEpochStart(), block.timestamp);
+        assertEq(rebalComponents.length, 0);
+        assertEq(weights.length, 0);
     }
 }
