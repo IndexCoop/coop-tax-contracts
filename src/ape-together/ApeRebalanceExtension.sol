@@ -12,9 +12,20 @@ import { Math } from "@openzeppelin/contracts/math/Math.sol";
 
 import { OwlNFT } from "./OwlNFT.sol";
 
+/**
+ * @title ApeRebalanceExtension
+ * @author Index Coop
+ *
+ * Rebalance extension that allows NFT holders to vote on token allocations. Rebalancing is still not
+ * fully trustless, as the operator must act as a price oracle for the tokens involved in the rebalance
+ * and set the trade data. However, a malicious operator can not introduce new tokens into the rebalance,
+ * but can influence the weighting by modifying the inputted price.
+ */
 contract ApeRebalanceExtension is GIMExtension {
     using PreciseUnitMath for uint256;
     using SafeCast for uint256;
+
+    /* ========== State Variables ======== */
 
     uint256 public epochLength;
     uint256 public  currentEpochStart;
@@ -27,6 +38,18 @@ contract ApeRebalanceExtension is GIMExtension {
 
     OwlNFT public owlNft;
 
+    /* ========== Constructor ========== */
+
+    /**
+     * Sets state variables.
+     *
+     * @param _manager          address of manager contract
+     * @param _gim              address of Set Protocol GeneralIndexModule
+     * @param _owlNft           address of OwlNFT contract
+     * @param _startTime        timestamp for the start of the first voting period
+     * @param _epochLength      length of a voting period (in seconds)
+     * @param _maxComponents    maximum number of components in the set
+     */
     constructor(
         IBaseManager _manager,
         IGeneralIndexModule _gim,
@@ -43,7 +66,17 @@ contract ApeRebalanceExtension is GIMExtension {
         epochLength = _epochLength;
         maxComponents = _maxComponents;
     }
+
+    /* ======== External Functions ======== */
  
+    /**
+     * Submits a vote for an OwlNFT holder. Sum of all votes must not exceed the total
+     * votes that the NFT holder has alloted to them. This value can be fetched by calling
+     * getVotes on the NFT contract.
+     *
+     * @param _components   array of components that the NFT holder wants added to the index
+     * @param _votes        array of number of votes allocated to each of the components
+     */
     function vote(address[] memory _components, uint256[] memory _votes) external {
         require(_components.length == _votes.length, "length mismatch");
 
@@ -72,6 +105,15 @@ contract ApeRebalanceExtension is GIMExtension {
         require(sumVotes <= _getVotes(msg.sender), "too many votes used");
     }
 
+    /**
+     * ONLY OPERATOR: Starts the rebalance process. Operator must supply the prices for the components
+     * being rebalances. If the component list does not match the components voted on by the OwlNFT holder
+     * this function will revert.
+     *
+     * @param _setValue         Approximate USD value of the index
+     * @param _components       Component list. Must match the compoennts voted on by OwlNFT holders
+     * @param _componentPrices  Component prices of each component in the _component list.
+     */
     function startRebalance(
         uint256 _setValue,
         address[] memory _components,
@@ -123,7 +165,9 @@ contract ApeRebalanceExtension is GIMExtension {
         _startRebalance(newComponents, newComponentsTargetUnits, oldComponentsTargetUnits, 1 ether);
     }
 
-    // TODO: fix override
+    /**
+     * Overrides the original rebalance function from GIMExtension. Always reverts.
+     */
     function startRebalanceWithUnitsOverride(
         address[] memory /* _components */,
         uint256[] memory /* _targetUnits */,
@@ -135,10 +179,27 @@ contract ApeRebalanceExtension is GIMExtension {
         revert("only democratically elected shitcoins allowed");
     }
 
+    /**
+     * Fetches the current top voted components and weights. When the rebalance begins,
+     * it will set the weights to be identical to the weights given by this function. The
+     * weights are measured as the percentage of the toal index value, not the unit amounts.
+     *
+     * @return addres[]     top voted on components
+     * @return uint256[]    components weights (not units) as per the vote
+     */
     function getWeights() external view returns (address[] memory, uint256[] memory) {
         return _getWeights();
     }
 
+    /* ========= Internal Functions ========== */
+
+    /**
+     * Fetches the total number of votes of a user. This function allows for an address to
+     * hold multiple OwlNFTs.
+     *
+     * @param _voter        address of voter to check votes for
+     * @return uint256      number of votes that the address has
+     */
     function _getVotes(address _voter) internal view returns (uint256) {
         uint256 bal = owlNft.balanceOf(_voter);
         
@@ -151,10 +212,23 @@ contract ApeRebalanceExtension is GIMExtension {
         return totalVotes;
     }
 
+    /**
+     * Checks whether the current epoch has ended.
+     *
+     * @return bool     whether current epoch has ended
+     */
     function _isEpochOver() internal view returns (bool) {
         return block.timestamp >= currentEpochStart.add(epochLength);
     }
 
+    /**
+     * Fetches the current top voted components and weights. When the rebalance begins,
+     * it will set the weights to be identical to the weights given by this function. The
+     * weights are measured as the percentage of the toal index value, not the unit amounts.
+     *
+     * @return components   top voted on components
+     * @return weights      components weights (not units) as per the vote
+     */
     function _getWeights() internal view returns (address[] memory components, uint256[] memory weights) {
         
         address[] memory possibleLeft = possibleComponents;
