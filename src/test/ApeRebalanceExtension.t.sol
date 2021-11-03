@@ -87,6 +87,7 @@ contract ApeRebalanceExtensionTest is DSTest {
             IBaseManager(address(baseManager)),
             IGeneralIndexModule(address(setFixture.generalIndexModule())),
             nft,
+            address(this),
             block.timestamp,
             1000,
             10

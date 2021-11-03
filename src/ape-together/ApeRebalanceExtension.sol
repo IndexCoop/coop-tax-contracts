@@ -25,12 +25,21 @@ contract ApeRebalanceExtension is GIMExtension {
     using PreciseUnitMath for uint256;
     using SafeCast for uint256;
 
+    /* =========== Modifiers =========== */
+
+    modifier onlyEngineer() {
+        require(msg.sender == engineer, "only our supreme engineering overlords may call");
+        _;
+    }
+
     /* ========== State Variables ======== */
+
+    address public engineer;
 
     uint256 public epochLength;
     uint256 public  currentEpochStart;
     
-    mapping(address => uint256) public lastEpochVoted;
+    mapping(uint256 => uint256) public lastEpochVoted;
     mapping(address => uint256) public votes;
     address[] public possibleComponents;
 
@@ -54,6 +63,7 @@ contract ApeRebalanceExtension is GIMExtension {
         IBaseManager _manager,
         IGeneralIndexModule _gim,
         OwlNFT _owlNft,
+        address _engineer,
         uint256 _startTime,
         uint256 _epochLength,
         uint256 _maxComponents
@@ -65,6 +75,7 @@ contract ApeRebalanceExtension is GIMExtension {
         currentEpochStart = _startTime;
         epochLength = _epochLength;
         maxComponents = _maxComponents;
+        engineer = _engineer;
     }
 
     /* ======== External Functions ======== */
@@ -80,9 +91,6 @@ contract ApeRebalanceExtension is GIMExtension {
     function vote(address[] memory _components, uint256[] memory _votes) external {
         require(_components.length == _votes.length, "length mismatch");
         require(!_isEpochOver(), "voting period ended");
-
-        require(lastEpochVoted[msg.sender] != currentEpochStart, "already voted");
-        lastEpochVoted[msg.sender] = currentEpochStart;
 
         uint256 sumVotes;
         for (uint256 i = 0; i < _components.length; i++) {
@@ -194,17 +202,22 @@ contract ApeRebalanceExtension is GIMExtension {
 
     /**
      * Fetches the total number of votes of a user. This function allows for an address to
-     * hold multiple OwlNFTs.
+     * hold multiple OwlNFTs. This will update the lastEpochVoted for each nft held by the voter.
+     * If any nft has already been used to vote during this epoch, then it will revert.
      *
      * @param _voter        address of voter to check votes for
      * @return uint256      number of votes that the address has
      */
-    function _getVotes(address _voter) internal view returns (uint256) {
+    function _getVotes(address _voter) internal returns (uint256) {
         uint256 bal = owlNft.balanceOf(_voter);
         
         uint256 totalVotes;
         for (uint256 i = 0; i < bal; i++) {
             uint256 id = owlNft.tokenOfOwnerByIndex(_voter, i);
+
+            require(lastEpochVoted[id] != currentEpochStart, "already voted");
+            lastEpochVoted[id] = currentEpochStart;
+
             totalVotes = totalVotes.add(owlNft.getVotes(id));
         }
 
