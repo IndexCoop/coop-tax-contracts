@@ -9,4 +9,4 @@
 	url = https://github.com/setprotocol/set-protocol-v2
 [submodule "lib/index-coop-smart-contracts"]
 	path = lib/index-coop-smart-contracts
-	url = https://github.com/setprotocol/index-coop-smart-contracts
+	url = https://github.com/ncitron/index-coop-smart-contracts

@@ -9,8 +9,10 @@ import { SetTokenCreator } from "setprotocol/contracts/protocol/SetTokenCreator.
 
 import { WETH9 } from "./WETH9.sol";
 
+import { IManagerIssuanceHook } from "setprotocol/contracts/interfaces/IManagerIssuanceHook.sol";
 import { IController } from "setprotocol/contracts/interfaces/IController.sol";
 import { IWETH } from "setprotocol/contracts/interfaces/external/IWETH.sol";
+import { ISetToken } from "setprotocol/contracts/interfaces/ISetToken.sol";
 
 contract SetFixture {
 
@@ -49,5 +51,20 @@ contract SetFixture {
         resourceIds[0] = 0;
 
         controller.initialize(factories, modules, resources, resourceIds);
+    }
+
+    function createSetToken(address[] memory _components, int256[] memory _units, address _manager) external returns (address) {
+        address[] memory modules = new address[](2);
+        modules[0] = address(generalIndexModule);
+        modules[1] = address(basicIssuanceModule);
+
+        ISetToken token = ISetToken(setTokenCreator.create(_components, _units, modules, address(this), "setToken", "SET"));
+
+        generalIndexModule.initialize(token);
+        basicIssuanceModule.initialize(token, IManagerIssuanceHook(address(this)));
+
+        token.setManager(_manager);
+
+        return address(token);
     }
 }
