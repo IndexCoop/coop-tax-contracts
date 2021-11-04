@@ -2,15 +2,15 @@
 pragma solidity 0.6.10;
 pragma experimental ABIEncoderV2;
 
-import { GIMExtension } from "indexcoop/contracts/adapters/GIMExtension.sol";
-import { IBaseManager } from "indexcoop/contracts/interfaces/IBaseManager.sol";
-import { IGeneralIndexModule } from "indexcoop/contracts/interfaces/IGeneralIndexModule.sol";
-import { PreciseUnitMath } from "indexcoop/contracts/lib/PreciseUnitMath.sol";
+import "indexcoop/contracts/adapters/GIMExtension.sol";
+import "indexcoop/contracts/interfaces/IBaseManager.sol";
+import "indexcoop/contracts/interfaces/IGeneralIndexModule.sol";
+import "indexcoop/contracts/lib/PreciseUnitMath.sol";
 
-import { SafeCast } from "@openzeppelin/contracts/utils/SafeCast.sol";
-import { Math } from "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/utils/SafeCast.sol";
+import "@openzeppelin/contracts/math/Math.sol";
 
-import { OwlNFT } from "./OwlNFT.sol";
+import "./OwlNFT.sol";
 
 /**
  * @title ApeRebalanceExtension
@@ -122,6 +122,12 @@ contract ApeRebalanceExtension is GIMExtension {
 
         (address[] memory finalComponents, uint256[] memory weights) = _getWeights();
 
+        // set next epoch time
+        currentEpochStart = block.timestamp;
+        
+        // if no votes were submitted epoch rebalance is skipped
+        if (finalComponents.length == 0) return;
+
         require(_components.length == finalComponents.length, "length mismatch");
         require(_components.length == _componentPrices.length, "length mismatch");
 
@@ -164,8 +170,7 @@ contract ApeRebalanceExtension is GIMExtension {
         // since we fix the position multiplier to 1 we cannot have a streaming fee in any set that uses this
         _startRebalance(newComponents, newComponentsTargetUnits, oldComponentsTargetUnits, 1 ether);
 
-        // set up for next epoch    
-        currentEpochStart = block.timestamp;
+        // clear out votes 
         for (uint256 i = 0; i < possibleComponents.length; i++) {
             votes[possibleComponents[i]] = 0;
         }
