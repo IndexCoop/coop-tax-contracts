@@ -1,4 +1,7 @@
-all    :; dapp build
+-include .env
+
+build    :; dapp build
 clean  :; dapp clean
 test   :; dapp test
-deploy :; dapp create CoopTaxContracts
+
+deploy :; @./scripts/deploy-ape-together.sh
