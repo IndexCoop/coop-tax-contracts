@@ -221,7 +221,7 @@ contract ApeRebalanceExtension is GIMExtension {
         return _getBestWethLiquidityAmount(_token) >= minWethLiquidity;
     }
 
-    function getSetPrice() external view returns (uint256) {
+    function getSetValue() external view returns (uint256) {
         address[] memory components = setToken.getComponents();
 
         uint256 sumValue;

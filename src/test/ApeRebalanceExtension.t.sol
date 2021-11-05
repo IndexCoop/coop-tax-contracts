@@ -216,6 +216,20 @@ contract ApeRebalanceExtensionTest is DSTest {
         voterA.vote(components, votes);
     }
 
+    function testFail_voteIlliquidToken() public {
+        address[] memory components = new address[](2);
+        components[0] = address(0x1);
+        components[1] = address(0x2);
+
+        uint256[] memory votes = new uint256[](2);
+        votes[0] = 50 ether;
+        votes[1] = 30 ether;
+
+        apeExtension.setMinWethLiquidity(100 ether);
+
+        voterA.vote(components, votes);
+    }
+
     function test_getWeights() public {
         address[] memory components = new address[](2);
         components[0] = address(0x1);
@@ -292,5 +306,45 @@ contract ApeRebalanceExtensionTest is DSTest {
         units[1] = 60 ether;
 
         apeExtension.startRebalanceWithUnits(components, units, 1 ether);
+    }
+
+    function test_getSetValue() public {
+        uint256 value = apeExtension.getSetValue();
+        uint256 expectedValue = uint(1).preciseDiv(2.5 ether);
+
+        assertEq(value, expectedValue);
+    }
+
+    function test_isTokenLiquid() public {
+        assertTrue(apeExtension.isTokenLiquid(address(dai)));
+    }
+
+    function test_isTokenLiquidIlliquid() public {
+        apeExtension.setMinWethLiquidity(100 ether);
+        assertTrue(!apeExtension.isTokenLiquid(address(dai)));
+    }
+
+    function test_setMinWethLiquidity() public {
+        apeExtension.setMinWethLiquidity(100 ether);
+        assertEq(apeExtension.minWethLiquidity(), 100 ether);
+    }
+
+    function test_rebalancePrices() public {
+        address[] memory components = new address[](2);
+        components[0] = address(0x1);
+        components[1] = address(0x2);
+
+        uint256[] memory votes = new uint256[](2);
+        votes[0] = 30 ether;
+        votes[1] = 60 ether;
+
+        voterA.vote(components, votes);
+
+        (address[] memory finalComponents, uint256[] memory prices) = apeExtension.getRebalancePrices();
+
+        assertEq(finalComponents[0], components[1]);
+        assertEq(finalComponents[1], components[0]);
+        assertEq(prices[0], uint(1).preciseDiv(2.5 ether));
+        assertEq(prices[1], uint(1).preciseDiv(2.5 ether));
     }
 }
