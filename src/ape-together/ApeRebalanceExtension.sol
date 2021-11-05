@@ -31,8 +31,6 @@ contract ApeRebalanceExtension is GIMExtension {
 
     /* ========== State Variables ======== */
 
-    address public engineer;
-
     uint256 public epochLength;
     uint256 public  currentEpochStart;
     
