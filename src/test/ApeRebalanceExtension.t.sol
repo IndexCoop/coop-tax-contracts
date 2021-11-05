@@ -10,12 +10,16 @@ import { PreciseUnitMath } from "indexcoop/contracts/lib/PreciseUnitMath.sol";
 import { ApeRebalanceExtension } from "../ape-together/ApeRebalanceExtension.sol";
 import { OwlNFT } from "../ape-together/OwlNFT.sol";
 import { SetFixture } from "../utils/SetFixture.sol";
+import { UniRouterMock } from "../mocks/UniRouterMock.sol";
+import { UniFactoryMock } from "../mocks/UniFactoryMock.sol";
 
 import { IBaseManager } from "indexcoop/contracts/interfaces/IBaseManager.sol";
 import { ISetToken } from "indexcoop/contracts/interfaces/ISetToken.sol";
 import { ISetToken as ISetTokenSet } from "setprotocol/contracts/interfaces/ISetToken.sol";
 import { IGeneralIndexModule } from "indexcoop/contracts/interfaces/IGeneralIndexModule.sol";
 import { IHevm } from "../utils/IHevm.sol";
+import { IUniswapV2Router } from "setprotocol/contracts/interfaces/external/IUniswapV2Router.sol";
+import { IUniswapV2Factory } from "setprotocol/contracts/interfaces/external/IUniswapV2Factory.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -63,6 +67,11 @@ contract ApeRebalanceExtensionTest is DSTest {
     BaseManagerV2 baseManager;
     StandardTokenMock dai;
 
+    UniRouterMock sushiRouter;
+    UniRouterMock quickRouter;
+    UniFactoryMock sushiFactory;
+    UniFactoryMock quickFactory;
+
     function setUp() public {
 
         hevm.warp(10000);
@@ -83,11 +92,22 @@ contract ApeRebalanceExtensionTest is DSTest {
 
         nft = new OwlNFT();
 
+        sushiFactory = new UniFactoryMock(address(0x7));
+        quickFactory = new UniFactoryMock(address(0x8));
+        sushiRouter = new UniRouterMock(2.5 ether, address(sushiFactory));
+        quickRouter = new UniRouterMock(2.5 ether, address(quickFactory));
+        setFixture.weth().deposit{value: 50 ether}();
+        setFixture.weth().transfer(address(0x7), 7 ether);
+        setFixture.weth().transfer(address(0x8), 3 ether);
+
         apeExtension = new ApeRebalanceExtension(
             IBaseManager(address(baseManager)),
             IGeneralIndexModule(address(setFixture.generalIndexModule())),
             nft,
-            address(this),
+            IUniswapV2Router(address(sushiRouter)),
+            IUniswapV2Router(address(quickRouter)),
+            IERC20(address(setFixture.weth())),
+            5 ether,
             block.timestamp,
             1000,
             10

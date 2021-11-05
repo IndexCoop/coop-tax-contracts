@@ -187,6 +187,10 @@ contract ApeRebalanceExtension is GIMExtension {
         delete possibleComponents;
     }
 
+    function setMinWethLiquidity(uint256 _newMin) external onlyOperator {
+        minWethLiquidity = _newMin;
+    }
+
     /**
      * Overrides the original rebalance function from GIMExtension. Always reverts.
      */
@@ -215,10 +219,6 @@ contract ApeRebalanceExtension is GIMExtension {
 
     function isTokenLiquid(address _token) external view returns (bool) {
         return _getBestWethLiquidityAmount(_token) >= minWethLiquidity;
-    }
-
-    function getTokenPrice(address _token) external view returns (uint256) {
-        return _getTokenPrice(_token);
     }
 
     function getSetPrice() external view returns (uint256) {
