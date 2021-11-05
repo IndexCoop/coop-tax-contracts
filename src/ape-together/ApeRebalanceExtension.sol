@@ -7,6 +7,9 @@ import "indexcoop/contracts/interfaces/IBaseManager.sol";
 import "indexcoop/contracts/interfaces/IGeneralIndexModule.sol";
 import "indexcoop/contracts/lib/PreciseUnitMath.sol";
 
+import "setprotocol/contracts/interfaces/external/IUniswapV2Router.sol";
+import "setprotocol/contracts/interfaces/external/IUniswapV2Factory.sol";
+
 import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 
@@ -24,46 +27,50 @@ import "./OwlNFT.sol";
 contract ApeRebalanceExtension is GIMExtension {
     using PreciseUnitMath for uint256;
     using SafeCast for uint256;
-
-    /* =========== Modifiers =========== */
-
-    modifier onlyEngineer() {
-        require(msg.sender == engineer, "only our supreme engineering overlords may call");
-        _;
-    }
+    using SafeCast for int256;
 
     /* ========== State Variables ======== */
-
-    address public engineer;
 
     uint256 public epochLength;
     uint256 public  currentEpochStart;
     
     mapping(uint256 => uint256) public lastEpochVoted;
     mapping(address => uint256) public votes;
-    address[] public possibleComponents;
 
+    address[] public possibleComponents;
     uint256 public immutable maxComponents;
 
     OwlNFT public owlNft;
+
+    IUniswapV2Router public sushiRouter;
+    IUniswapV2Router public quickRouter;
+    IERC20 weth;
+    uint256 public minWethLiquidity;
 
     /* ========== Constructor ========== */
 
     /**
      * Sets state variables.
      *
-     * @param _manager          address of manager contract
-     * @param _gim              address of Set Protocol GeneralIndexModule
-     * @param _owlNft           address of OwlNFT contract
-     * @param _startTime        timestamp for the start of the first voting period
-     * @param _epochLength      length of a voting period (in seconds)
-     * @param _maxComponents    maximum number of components in the set
+     * @param _manager              address of manager contract
+     * @param _gim                  address of Set Protocol GeneralIndexModule
+     * @param _owlNft               address of OwlNFT contract
+     * @param _startTime            timestamp for the start of the first voting period
+     * @param _sushiRouter          sushiswap router contract
+     * @param _quickRouter          quickswap router contract
+     * @param _weth                 weth token contract
+     * @param _minWethLiquidity     minimum amount of weth liquidity required to add a token
+     * @param _epochLength          length of a voting period (in seconds)
+     * @param _maxComponents        maximum number of components in the set
      */
     constructor(
         IBaseManager _manager,
         IGeneralIndexModule _gim,
         OwlNFT _owlNft,
-        address _engineer,
+        IUniswapV2Router _sushiRouter,
+        IUniswapV2Router _quickRouter,
+        IERC20 _weth,
+        uint256 _minWethLiquidity,
         uint256 _startTime,
         uint256 _epochLength,
         uint256 _maxComponents
@@ -75,7 +82,10 @@ contract ApeRebalanceExtension is GIMExtension {
         currentEpochStart = _startTime;
         epochLength = _epochLength;
         maxComponents = _maxComponents;
-        engineer = _engineer;
+        sushiRouter = _sushiRouter;
+        quickRouter = _quickRouter;
+        weth = _weth;
+        minWethLiquidity = _minWethLiquidity;
     }
 
     /* ======== External Functions ======== */
@@ -95,6 +105,8 @@ contract ApeRebalanceExtension is GIMExtension {
         uint256 sumVotes;
         for (uint256 i = 0; i < _components.length; i++) {
             require(_votes[i] != 0, "no zero votes allowed");
+            require(_getBestWethLiquidityAmount(_components[i]) >= minWethLiquidity, "not enough liquidity");
+
             if (votes[_components[i]] == 0) {
                 possibleComponents.push(_components[i]);
             }
@@ -178,6 +190,15 @@ contract ApeRebalanceExtension is GIMExtension {
     }
 
     /**
+     * ONLY OPERATOR: Sets the minWethLiquidity parameter.
+     *
+     * @param _newMin       new minimum weth liquidity
+     */
+    function setMinWethLiquidity(uint256 _newMin) external onlyOperator {
+        minWethLiquidity = _newMin;
+    }
+
+    /**
      * Overrides the original rebalance function from GIMExtension. Always reverts.
      */
     function startRebalanceWithUnits(
@@ -201,6 +222,53 @@ contract ApeRebalanceExtension is GIMExtension {
      */
     function getWeights() external view returns (address[] memory, uint256[] memory) {
         return _getWeights();
+    }
+
+    /**
+     * Checks whether the token has enough liquidity on a supported exchange to allow
+     * it to be added to the set. Must have more than minWethLiquidty weth in the pool.
+     *
+     * @param _token    token address to check liquidity for
+     * @return bool     whether the token is liquid enough
+     */
+    function isTokenLiquid(address _token) external view returns (bool) {
+        return _getBestWethLiquidityAmount(_token) >= minWethLiquidity;
+    }
+
+    /**
+     * Gets the total set value in weth terms. Uses supported exchanges as a price
+     * source. This function should only ever be called off-chain since it can be
+     * manipulated.
+     *
+     * @return uint256      value of set in weth terms
+     */
+    function getSetValue() external view returns (uint256) {
+        address[] memory components = setToken.getComponents();
+
+        uint256 sumValue;
+        for (uint256 i = 0; i < components.length; i++) {
+            uint256 units = setToken.getDefaultPositionRealUnit(components[i]).toUint256();
+            uint256 value = _getTokenPrice(components[i]).preciseMul(units);
+            sumValue = sumValue.add(value);
+        }
+
+        return sumValue;
+    }
+
+    /**
+     * Gets the prices for all components that will be involved in the rebalance. This function
+     * should only ever be called off-chain since it can be manipulated.
+     *
+     * @return components   components of the upcoming rebalance
+     * @return prices       prices of components in the upcoming rebalance
+     */
+    function getRebalancePrices() external view returns (address[] memory components, uint256[] memory prices) {
+        (components,) = _getWeights();
+
+        prices = new uint256[](components.length);
+        for (uint256 i = 0; i < components.length; i++) {
+            prices[i] = _getTokenPrice(components[i]);
+        }
     }
 
     /* ========= Internal Functions ========== */
@@ -279,5 +347,61 @@ contract ApeRebalanceExtension is GIMExtension {
         for (uint256 i = 0; i < numComponents; i++) {
             weights[i] = finalVotes[i].preciseDiv(sumVotes);
         }
+    }
+
+    /**
+     * Fetches the uniswap router with the most liquidty paired with weth
+     *
+     * @param _token                the token to check liquidity for
+     * @return IUniswapV2Router     the router with the best liquidity
+     */
+    function _getBestRouter(address _token) internal view returns (IUniswapV2Router) {
+        uint256 sushiWethLiq = _getWethLiquidity(_token, sushiRouter);
+        uint256 quickWethLiq = _getWethLiquidity(_token, quickRouter);
+
+        return sushiWethLiq > quickWethLiq ? sushiRouter : quickRouter;
+    }
+
+    /**
+     * Gets the maximum amount of weth liquidity paired with a token on a
+     * supported exchange.
+     *
+     * @param _token        token to check liquidity for
+     * @return uint256      highest liquidty amount
+     */
+    function _getBestWethLiquidityAmount(address _token) internal view returns (uint256) {
+        uint256 sushiWethLiq = _getWethLiquidity(_token, sushiRouter);
+        uint256 quickWethLiq = _getWethLiquidity(_token, quickRouter);
+
+        return Math.max(sushiWethLiq, quickWethLiq);
+    }
+
+    /**
+     * Gets the amount of weth liquidity paired with a token on a
+     * supported exchange.
+     *
+     * @param _token        token to check liquidity for
+     * @return uint256      weth liquidty amount
+     */
+    function _getWethLiquidity(address _token, IUniswapV2Router _router) internal view returns (uint256) {
+        address pair = IUniswapV2Factory(_router.factory()).getPair(address(weth), _token);
+        return weth.balanceOf(pair);
+    }
+
+    /**
+     * Fetches the price of a token in weth. Uses the exchange with the most liquidity.
+     * This function should only be called off-chain as it is manipulatable.
+     *
+     * @param _token        the token to check price for
+     * @return uint256      the price of the token in weth
+     */
+    function _getTokenPrice(address _token) internal view returns (uint256) {
+        IUniswapV2Router router = _getBestRouter(_token);
+
+        address[] memory path = new address[](2);
+        path[0] = address(weth);
+        path[1] = _token;
+        
+        return uint(1).preciseDiv(router.getAmountsOut(1 ether, path)[1]);
     }
 }
