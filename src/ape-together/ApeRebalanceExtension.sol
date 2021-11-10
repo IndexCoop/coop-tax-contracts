@@ -15,15 +15,13 @@ import "@openzeppelin/contracts/math/Math.sol";
 
 import "./OwlNFT.sol";
 
-/**
- * @title ApeRebalanceExtension
- * @author Index Coop
- *
- * Rebalance extension that allows NFT holders to vote on token allocations. Rebalancing is still not
- * fully trustless, as the operator must act as a price oracle for the tokens involved in the rebalance
- * and set the trade data. However, a malicious operator can not introduce new tokens into the rebalance,
- * but can influence the weighting by modifying the inputted price.
- */
+
+/// @title ApeRebalanceExtension
+/// @author ncitron
+/// @notice Rebalance extension that allows NFT holders to vote on token allocations.
+/// @dev Rebalancing is still not fully trustless, as the operator must act as a price oracle for the tokens 
+/// involved in the rebalance and set the trade data. However, a malicious operator can not introduce new 
+/// tokens into the rebalance, but can influence the weighting by modifying the inputted price.
 contract ApeRebalanceExtension is GIMExtension {
     using PreciseUnitMath for uint256;
     using SafeCast for uint256;
@@ -49,20 +47,17 @@ contract ApeRebalanceExtension is GIMExtension {
 
     /* ========== Constructor ========== */
 
-    /**
-     * Sets state variables.
-     *
-     * @param _manager              address of manager contract
-     * @param _gim                  address of Set Protocol GeneralIndexModule
-     * @param _owlNft               address of OwlNFT contract
-     * @param _startTime            timestamp for the start of the first voting period
-     * @param _sushiRouter          sushiswap router contract
-     * @param _quickRouter          quickswap router contract
-     * @param _weth                 weth token contract
-     * @param _minWethLiquidity     minimum amount of weth liquidity required to add a token
-     * @param _epochLength          length of a voting period (in seconds)
-     * @param _maxComponents        maximum number of components in the set
-     */
+    /// @notice Creates new rebalnace extension.
+    /// @param _manager Address of manager contract
+    /// @param _gim Address of Set Protocol GeneralIndexModule
+    /// @param _owlNft Address of OwlNFT contract
+    /// @param _startTime Timestamp for the start of the first voting period
+    /// @param _sushiRouter Sushiswap router contract
+    /// @param _quickRouter Quickswap router contract
+    /// @param _weth WETH token contract
+    /// @param _minWethLiquidity Minimum amount of weth liquidity required to add a token
+    /// @param _epochLength Length of a voting period (in seconds)
+    /// @param _maxComponents Maximum number of components in the set
     constructor(
         IBaseManager _manager,
         IGeneralIndexModule _gim,
@@ -90,14 +85,11 @@ contract ApeRebalanceExtension is GIMExtension {
 
     /* ======== External Functions ======== */
  
-    /**
-     * Submits a vote for an OwlNFT holder. Sum of all votes must not exceed the total
-     * votes that the NFT holder has alloted to them. This value can be fetched by calling
-     * getVotes on the NFT contract.
-     *
-     * @param _components   array of components that the NFT holder wants added to the index
-     * @param _votes        array of number of votes allocated to each of the components
-     */
+    /// @notice Submits a vote for an OwlNFT holder. Sum of all votes must not exceed the total
+    /// votes that the NFT holder has alloted to them. This value can be fetched by calling
+    /// getVotes on the NFT contract.
+    /// @param _components Array of components that the NFT holder wants added to the index
+    /// @param _votes Array of number of votes allocated to each of the components
     function vote(address[] memory _components, uint256[] memory _votes) external {
         require(_components.length == _votes.length, "length mismatch");
         require(!_isEpochOver(), "voting period ended");
@@ -117,15 +109,12 @@ contract ApeRebalanceExtension is GIMExtension {
         require(sumVotes <= _getVotes(msg.sender), "too many votes used");
     }
 
-    /**
-     * ONLY OPERATOR: Starts the rebalance process. Operator must supply the prices for the components
-     * being rebalances. If the component list does not match the components voted on by the OwlNFT holder
-     * this function will revert.
-     *
-     * @param _setValue         Approximate USD value of the index
-     * @param _components       Component list. Must match the compoennts voted on by OwlNFT holders
-     * @param _componentPrices  Component prices of each component in the _component list.
-     */
+    /// @notice Starts the rebalance process.
+    /// @dev Only operator may call.
+    /// @dev If the component list does not match the components voted on by the OwlNFT holders this function will revert
+    /// @param _setValue Approximate USD value of the index
+    /// @param _components Component list. Must match the compoennts voted on by OwlNFT holders
+    /// @param _componentPrices Component prices of each component in the _component list.
     function startRebalance(
         uint256 _setValue,
         address[] memory _components,
@@ -147,7 +136,7 @@ contract ApeRebalanceExtension is GIMExtension {
         for (uint256 i = 0; i < _components.length; i++) {
             require(finalComponents[i] == _components[i], "component mismatch");
 
-            // (weight * total) / price
+            // (weight/// total) / price
             units[i] = _setValue.preciseMul(weights[i]).preciseDiv(_componentPrices[i]);
         }
 
@@ -189,18 +178,14 @@ contract ApeRebalanceExtension is GIMExtension {
         delete possibleComponents;
     }
 
-    /**
-     * ONLY OPERATOR: Sets the minWethLiquidity parameter.
-     *
-     * @param _newMin       new minimum weth liquidity
-     */
+    /// @notice Sets the minWethLiquidity parameter
+    /// @dev Only operator may call
+    /// @param _newMin New minimum weth liquidity
     function setMinWethLiquidity(uint256 _newMin) external onlyOperator {
         minWethLiquidity = _newMin;
     }
 
-    /**
-     * Overrides the original rebalance function from GIMExtension. Always reverts.
-     */
+    /// @dev Overrides the original rebalance function from GIMExtension. Always reverts.
     function startRebalanceWithUnits(
         address[] memory /* _components */,
         uint256[] memory /* _targetUnits */,
@@ -212,36 +197,27 @@ contract ApeRebalanceExtension is GIMExtension {
         revert("only democratically elected shitcoins allowed");
     }
 
-    /**
-     * Fetches the current top voted components and weights. When the rebalance begins,
-     * it will set the weights to be identical to the weights given by this function. The
-     * weights are measured as the percentage of the toal index value, not the unit amounts.
-     *
-     * @return addres[]     top voted on components
-     * @return uint256[]    components weights (not units) as per the vote
-     */
+    /// @notice Fetches the current top voted components and weights. When the rebalance begins,
+    /// it will set the weights to be identical to the weights given by this function. The
+    /// weights are measured as the percentage of the toal index value, not the unit amounts.
+    /// @return Array of top voted on components
+    /// @return Array of components weights (not units) as per the vote
     function getWeights() external view returns (address[] memory, uint256[] memory) {
         return _getWeights();
     }
 
-    /**
-     * Checks whether the token has enough liquidity on a supported exchange to allow
-     * it to be added to the set. Must have more than minWethLiquidty weth in the pool.
-     *
-     * @param _token    token address to check liquidity for
-     * @return bool     whether the token is liquid enough
-     */
+    /// @notice Checks whether the token has enough liquidity on a supported exchange to allow
+    /// it to be added to the set. Must have more than minWethLiquidty weth in the pool.
+    /// @param _token Token address to check liquidity for
+    /// @return Whether the token is liquid enough
     function isTokenLiquid(address _token) external view returns (bool) {
         return _getBestWethLiquidityAmount(_token) >= minWethLiquidity;
     }
 
-    /**
-     * Gets the total set value in weth terms. Uses supported exchanges as a price
-     * source. This function should only ever be called off-chain since it can be
-     * manipulated.
-     *
-     * @return uint256      value of set in weth terms
-     */
+    /// @notice Gets the total set value in weth terms
+    /// @dev Uses supported exchanges as a price source. This function should only ever be called off-chain
+    /// since it can be manipulated.
+    /// @return Value of set in weth terms
     function getSetValue() external view returns (uint256) {
         address[] memory components = setToken.getComponents();
 
@@ -255,13 +231,10 @@ contract ApeRebalanceExtension is GIMExtension {
         return sumValue;
     }
 
-    /**
-     * Gets the prices for all components that will be involved in the rebalance. This function
-     * should only ever be called off-chain since it can be manipulated.
-     *
-     * @return components   components of the upcoming rebalance
-     * @return prices       prices of components in the upcoming rebalance
-     */
+    /// @notice Gets the prices for all components that will be involved in the rebalance
+    /// @dev This function should only ever be called off-chain since it can be manipulated.
+    /// @return components Components of the upcoming rebalance
+    /// @return prices Prices of components in the upcoming rebalance
     function getRebalancePrices() external view returns (address[] memory components, uint256[] memory prices) {
         (components,) = _getWeights();
 
@@ -271,13 +244,10 @@ contract ApeRebalanceExtension is GIMExtension {
         }
     }
 
-    /**
-     * Fetches the total number of votes of a user. This function allows for an address to
-     * hold multiple OwlNFTs.
-     *
-     * @param _voter        address of voter to check votes for
-     * @return uint256      number of votes that the address has
-     */
+    /// @notice Fetches the total number of votes of a user. This function allows for an address to
+    /// hold multiple OwlNFTs.
+    /// @param _voter Address of voter to check votes for
+    /// @return Number of votes that the address has
     function getVotes(address _voter) external view returns (uint256) {
         uint256 bal = owlNft.balanceOf(_voter);
         
@@ -294,14 +264,11 @@ contract ApeRebalanceExtension is GIMExtension {
 
     /* ========= Internal Functions ========== */
 
-    /**
-     * Fetches the total number of votes of a user. This function allows for an address to
-     * hold multiple OwlNFTs. This will update the lastEpochVoted for each nft held by the voter.
-     * If any nft has already been used to vote during this epoch, then it will revert.
-     *
-     * @param _voter        address of voter to check votes for
-     * @return uint256      number of votes that the address has
-     */
+    /// @dev Fetches the total number of votes of a user. This function allows for an address to
+    /// hold multiple OwlNFTs. This will update the lastEpochVoted for each nft held by the voter.
+    /// If any nft has already been used to vote during this epoch, then it will revert.
+    /// @param _voter Address of voter to check votes for
+    /// @return Number of votes that the address has
     function _getVotes(address _voter) internal returns (uint256) {
         uint256 bal = owlNft.balanceOf(_voter);
         
@@ -318,23 +285,17 @@ contract ApeRebalanceExtension is GIMExtension {
         return totalVotes;
     }
 
-    /**
-     * Checks whether the current epoch has ended.
-     *
-     * @return bool     whether current epoch has ended
-     */
+    /// @dev Checks whether the current epoch has ended.
+    /// @return Whether current epoch has ended
     function _isEpochOver() internal view returns (bool) {
         return block.timestamp >= currentEpochStart.add(epochLength);
     }
 
-    /**
-     * Fetches the current top voted components and weights. When the rebalance begins,
-     * it will set the weights to be identical to the weights given by this function. The
-     * weights are measured as the percentage of the toal index value, not the unit amounts.
-     *
-     * @return components   top voted on components
-     * @return weights      components weights (not units) as per the vote
-     */
+    /// @dev Fetches the current top voted components and weights. When the rebalance begins,
+    /// it will set the weights to be identical to the weights given by this function. The
+    /// weights are measured as the percentage of the toal index value, not the unit amounts.
+    /// @return components Top voted on components
+    /// @return weights Components weights (not units) as per the vote
     function _getWeights() internal view returns (address[] memory components, uint256[] memory weights) {
         
         address[] memory possibleLeft = possibleComponents;
@@ -370,12 +331,9 @@ contract ApeRebalanceExtension is GIMExtension {
         }
     }
 
-    /**
-     * Fetches the uniswap router with the most liquidty paired with weth
-     *
-     * @param _token                the token to check liquidity for
-     * @return IUniswapV2Router     the router with the best liquidity
-     */
+    /// @dev Fetches the uniswap router with the most liquidty paired with weth
+    /// @param _token The token to check liquidity for
+    /// @return The router with the best liquidity
     function _getBestRouter(address _token) internal view returns (IUniswapV2Router) {
         uint256 sushiWethLiq = _getWethLiquidity(_token, sushiRouter);
         uint256 quickWethLiq = _getWethLiquidity(_token, quickRouter);
@@ -383,13 +341,10 @@ contract ApeRebalanceExtension is GIMExtension {
         return sushiWethLiq > quickWethLiq ? sushiRouter : quickRouter;
     }
 
-    /**
-     * Gets the maximum amount of weth liquidity paired with a token on a
-     * supported exchange.
-     *
-     * @param _token        token to check liquidity for
-     * @return uint256      highest liquidty amount
-     */
+    /// @dev Gets the maximum amount of weth liquidity paired with a token on a
+    /// supported exchange.
+    /// @param _token  The token to check liquidity for
+    /// @return Highest liquidty amount
     function _getBestWethLiquidityAmount(address _token) internal view returns (uint256) {
         uint256 sushiWethLiq = _getWethLiquidity(_token, sushiRouter);
         uint256 quickWethLiq = _getWethLiquidity(_token, quickRouter);
@@ -397,25 +352,18 @@ contract ApeRebalanceExtension is GIMExtension {
         return Math.max(sushiWethLiq, quickWethLiq);
     }
 
-    /**
-     * Gets the amount of weth liquidity paired with a token on a
-     * supported exchange.
-     *
-     * @param _token        token to check liquidity for
-     * @return uint256      weth liquidty amount
-     */
+    /// @dev Gets the amount of weth liquidity paired with a token on a supported exchange.
+    /// @param _token The token to check liquidity for
+    /// @return Weth liquidty amount
     function _getWethLiquidity(address _token, IUniswapV2Router _router) internal view returns (uint256) {
         address pair = IUniswapV2Factory(_router.factory()).getPair(address(weth), _token);
         return weth.balanceOf(pair);
     }
 
-    /**
-     * Fetches the price of a token in weth. Uses the exchange with the most liquidity.
-     * This function should only be called off-chain as it is manipulatable.
-     *
-     * @param _token        the token to check price for
-     * @return uint256      the price of the token in weth
-     */
+    /// @dev Fetches the price of a token in weth. Uses the exchange with the most liquidity.
+    /// @dev This function should only be called off-chain as it is manipulatable.
+    /// @param _token The token to check price for
+    /// @return Price of the token in weth
     function _getTokenPrice(address _token) internal view returns (uint256) {
         IUniswapV2Router router = _getBestRouter(_token);
 
