@@ -271,6 +271,27 @@ contract ApeRebalanceExtension is GIMExtension {
         }
     }
 
+    /**
+     * Fetches the total number of votes of a user. This function allows for an address to
+     * hold multiple OwlNFTs.
+     *
+     * @param _voter        address of voter to check votes for
+     * @return uint256      number of votes that the address has
+     */
+    function getVotes(address _voter) external view returns (uint256) {
+        uint256 bal = owlNft.balanceOf(_voter);
+        
+        uint256 totalVotes;
+        for (uint256 i = 0; i < bal; i++) {
+            uint256 id = owlNft.tokenOfOwnerByIndex(_voter, i);
+
+            require(lastEpochVoted[id] != currentEpochStart, "already voted");
+            totalVotes = totalVotes.add(owlNft.getVotes(id));
+        }
+
+        return totalVotes;
+    }
+
     /* ========= Internal Functions ========== */
 
     /**

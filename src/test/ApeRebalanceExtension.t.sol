@@ -347,4 +347,10 @@ contract ApeRebalanceExtensionTest is DSTest {
         assertEq(prices[0], uint(1).preciseDiv(2.5 ether));
         assertEq(prices[1], uint(1).preciseDiv(2.5 ether));
     }
+
+    function test_getVotes() public {
+        assertEq(apeExtension.getVotes(address(voterA)), 100 ether);
+        assertEq(apeExtension.getVotes(address(voterB)), 75 ether);
+        assertEq(apeExtension.getVotes(address(voterC)), 0);
+    }
 }
