@@ -11,8 +11,8 @@ UNITS="[1000000000000000000]"
 SET_TOKEN=$(createSet $COMPONENTS $UNITS $OPERATOR "ApeTogether" "APE")
 
 # Deploy OwlNFT
-NFT_ADDR=$(dapp create OwlNFT)
-! dapp verify-contract src/ape-together/OwlNFT.sol:OwlNFT $NFT_ADDR
+NFT_ADDR=$(dapp create OwlNFT $BASE_URI)
+! dapp verify-contract src/ape-together/OwlNFT.sol:OwlNFT $NFT_ADDR $BASE_URI
 
 # Deploy BaseManagerV2
 MANAGER_ARGS="$SET_TOKEN $OPERATOR $OPERATOR"

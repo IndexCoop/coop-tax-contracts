@@ -90,7 +90,7 @@ contract ApeRebalanceExtensionTest is DSTest {
         setToken.setManager(address(baseManager));
         baseManager.authorizeInitialization();
 
-        nft = new OwlNFT();
+        nft = new OwlNFT("example.com/");
 
         sushiFactory = new UniFactoryMock(address(0x7));
         quickFactory = new UniFactoryMock(address(0x8));

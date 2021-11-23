@@ -18,7 +18,10 @@ contract OwlNFT is ERC721, Ownable {
 
     
     /// @notice Creates the OwlNFT
-    constructor() public ERC721("OwlNFT", "OWL") {}
+    /// @param _baseURI the base URI of the NFT. Must include trailing slash
+    constructor(string memory _baseURI) public ERC721("OwlNFT", "OWL") {
+        _setBaseURI(_baseURI);
+    }
 
     /// @notice Batch mints NFTs
     /// @dev Only callable by owner
@@ -28,7 +31,10 @@ contract OwlNFT is ERC721, Ownable {
         require(_to.length == _ranks.length, "length mismatch");
 
         for (uint256 i = 0; i < _to.length; i++) {
+
             _safeMint(_to[i], currentId);
+            _setTokenURI(currentId, _getRankString(_ranks[i]));
+
             ranks[currentId] = _ranks[i];
             currentId = currentId.add(1);
         }
@@ -46,5 +52,14 @@ contract OwlNFT is ERC721, Ownable {
         if (rank == OwlRank.BRONZE) return 50 ether;
         if (rank == OwlRank.SILVER) return 75 ether;
         if (rank == OwlRank.GOLD) return 100 ether;
+    }
+
+    /// @dev Gets the OwlRank as a human readable string
+    /// @param _rank OwlRank to format
+    /// @return String formatted rank
+    function _getRankString(OwlRank _rank) internal pure returns (string memory) {
+        if (_rank == OwlRank.BRONZE) return "bronze";
+        if (_rank == OwlRank.SILVER) return "silver";
+        if (_rank == OwlRank.GOLD) return "gold";
     }
 }
