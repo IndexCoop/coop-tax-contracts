@@ -5,14 +5,15 @@
 OPERATOR=0x37e6365d4f6aE378467b0e24c9065Ce5f06D70bF
 
 # Create Set Token
-COMPONENTS="[0x8f3cf7ad23cd3cadbd9735aff958023239c6a063]"
-UNITS="[1000000000000000000]"
+COMPONENTS="[0x7ceb23fd6bc0add59e62ac25578270cff1b9f619]"
+UNITS="[235000000000000]"
 
-SET_TOKEN=$(createSet $COMPONENTS $UNITS $OPERATOR "ApeTogether" "APE")
+SET_TOKEN=$(createSet $COMPONENTS $UNITS $OPERATOR "HootIndex" "HOOT")
+
 
 # Deploy OwlNFT
-NFT_ADDR=$(dapp create OwlNFT $BASE_URI)
-! dapp verify-contract src/ape-together/OwlNFT.sol:OwlNFT $NFT_ADDR $BASE_URI
+NFT_ADDR=$(dapp create OwlNFT \"$BASE_URI\")
+! dapp verify-contract src/ape-together/OwlNFT.sol:OwlNFT $NFT_ADDR \"$BASE_URI\"
 
 # Deploy BaseManagerV2
 MANAGER_ARGS="$SET_TOKEN $OPERATOR $OPERATOR"
@@ -21,8 +22,8 @@ MANAGER_ADDR=$(dapp create BaseManagerV2 $MANAGER_ARGS)
 
 
 # Deploy ApeRebalanceExtension
-MIN_WETH=15
-START_TIME=1636525425
+MIN_WETH=10
+START_TIME=1637773200
 EPOCH_LENGTH=604800     # 7 days
 MAX_COMPONENTS=10
 
