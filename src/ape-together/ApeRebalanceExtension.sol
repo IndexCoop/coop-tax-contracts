@@ -178,6 +178,28 @@ contract ApeRebalanceExtension is GIMExtension {
         delete possibleComponents;
     }
 
+    function setExchanges() external {
+        (address[] memory components, ) = _getWeights();
+
+        string[] memory exchanges = new string[](components.length);
+        for (uint256 i = 0; i < components.length; i++) {
+
+            IUniswapV2Router bestRouter = _getBestRouter(components[i]);
+            string memory bestExchange = bestRouter == sushiRouter ? "SushiswapIndexExchangeAdapter" : "QuickswapIndexExchangeAdapter";   
+
+            exchanges[i] = bestExchange;
+        }
+
+        bytes memory setExchangesCalldata = abi.encodeWithSignature(
+            "setExchanges(address,address[],string[])",
+            setToken,
+            components,
+            exchanges
+        );
+
+        invokeManager(address(generalIndexModule), setExchangesCalldata);
+    }
+
     /// @notice Sets the minWethLiquidity parameter
     /// @dev Only operator may call
     /// @param _newMin New minimum weth liquidity
