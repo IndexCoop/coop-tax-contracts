@@ -246,7 +246,10 @@ contract ApeRebalanceExtension is GIMExtension {
         uint256 sumValue;
         for (uint256 i = 0; i < components.length; i++) {
             uint256 units = setToken.getDefaultPositionRealUnit(components[i]).toUint256();
-            uint256 value = _getTokenPrice(components[i]).preciseMul(units);
+            uint256 value = units;
+            if (components[i] != address(weth)) {
+                value = _getTokenPrice(components[i]).preciseMul(units);
+            }
             sumValue = sumValue.add(value);
         }
 
