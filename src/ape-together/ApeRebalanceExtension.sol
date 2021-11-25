@@ -97,7 +97,7 @@ contract ApeRebalanceExtension is GIMExtension {
         uint256 sumVotes;
         for (uint256 i = 0; i < _components.length; i++) {
             require(_votes[i] != 0, "no zero votes allowed");
-            require(_getBestWethLiquidityAmount(_components[i]) >= minWethLiquidity, "not enough liquidity");
+            require(_isTokenLiquid(_components[i]), "not enough liquidity");
 
             if (votes[_components[i]] == 0) {
                 possibleComponents.push(_components[i]);
@@ -178,26 +178,30 @@ contract ApeRebalanceExtension is GIMExtension {
         delete possibleComponents;
     }
 
-    function setExchanges() external {
+    function setExchanges() external onlyOperator {
         (address[] memory components, ) = _getWeights();
 
-        string[] memory exchanges = new string[](components.length);
         for (uint256 i = 0; i < components.length; i++) {
+            if (components[i] != address(weth)) {
 
-            IUniswapV2Router bestRouter = _getBestRouter(components[i]);
-            string memory bestExchange = bestRouter == sushiRouter ? "SushiswapIndexExchangeAdapter" : "QuickswapIndexExchangeAdapter";   
+                string[] memory exchanges = new string[](1);
+                address[] memory component = new address[](1);
+                component[0] = components[i];
 
-            exchanges[i] = bestExchange;
+                IUniswapV2Router bestRouter = _getBestRouter(components[i]);
+                string memory bestExchange = bestRouter == sushiRouter ? "SushiswapIndexExchangeAdapter" : "QuickswapIndexExchangeAdapter";   
+                exchanges[0] = bestExchange;
+
+                bytes memory setExchangesCalldata = abi.encodeWithSignature(
+                    "setExchanges(address,address[],string[])",
+                    setToken,
+                    component,
+                    exchanges
+                );
+
+                invokeManager(address(generalIndexModule), setExchangesCalldata);
+            }
         }
-
-        bytes memory setExchangesCalldata = abi.encodeWithSignature(
-            "setExchanges(address,address[],string[])",
-            setToken,
-            components,
-            exchanges
-        );
-
-        invokeManager(address(generalIndexModule), setExchangesCalldata);
     }
 
     /// @notice Sets the minWethLiquidity parameter
@@ -233,7 +237,7 @@ contract ApeRebalanceExtension is GIMExtension {
     /// @param _token Token address to check liquidity for
     /// @return Whether the token is liquid enough
     function isTokenLiquid(address _token) external view returns (bool) {
-        return _getBestWethLiquidityAmount(_token) >= minWethLiquidity;
+        return _isTokenLiquid(_token);
     }
 
     /// @notice Gets the total set value in weth terms
@@ -377,6 +381,10 @@ contract ApeRebalanceExtension is GIMExtension {
         return Math.max(sushiWethLiq, quickWethLiq);
     }
 
+    function _isTokenLiquid(address _token) internal view returns (bool) {
+        return _token == address(weth) || _getBestWethLiquidityAmount(_token) >= minWethLiquidity;
+    }
+
     /// @dev Gets the amount of weth liquidity paired with a token on a supported exchange.
     /// @param _token The token to check liquidity for
     /// @return Weth liquidty amount
@@ -390,6 +398,11 @@ contract ApeRebalanceExtension is GIMExtension {
     /// @param _token The token to check price for
     /// @return Price of the token in weth
     function _getTokenPrice(address _token) internal view returns (uint256) {
+
+        if (_token == address(weth)) {
+            return 1 ether;
+        }
+
         IUniswapV2Router router = _getBestRouter(_token);
 
         address[] memory path = new address[](2);
