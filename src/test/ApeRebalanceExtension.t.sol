@@ -22,6 +22,7 @@ import { IUniswapV2Router } from "setprotocol/contracts/interfaces/external/IUni
 import { IUniswapV2Factory } from "setprotocol/contracts/interfaces/external/IUniswapV2Factory.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 
 contract Voter {
@@ -57,6 +58,9 @@ contract ApeRebalanceExtensionTest is DSTest {
 
     ApeRebalanceExtension apeExtension;
     OwlNFT nft;
+
+    ERC20 tokenA;
+    ERC20 tokenB;
 
     Voter voterA;
     Voter voterB;
@@ -119,6 +123,10 @@ contract ApeRebalanceExtensionTest is DSTest {
         voterA = new Voter(apeExtension);
         voterB = new Voter(apeExtension);
         voterC = new Voter(apeExtension);
+
+        // setup tokens
+        tokenA = new ERC20("a", "a");
+        tokenB = new ERC20("b", "b");
 
         address[] memory to = new address[](2);
         OwlNFT.OwlRank[] memory ranks = new OwlNFT.OwlRank[](2);
@@ -232,8 +240,8 @@ contract ApeRebalanceExtensionTest is DSTest {
 
     function test_getWeights() public {
         address[] memory components = new address[](2);
-        components[0] = address(0x1);
-        components[1] = address(0x2);
+        components[0] = address(tokenA);
+        components[1] = address(tokenB);
 
         uint256[] memory votes = new uint256[](2);
         votes[0] = 30 ether;
@@ -252,8 +260,8 @@ contract ApeRebalanceExtensionTest is DSTest {
 
     function test_startRebalance() public {
         address[] memory components = new address[](2);
-        components[0] = address(0x1);
-        components[1] = address(0x2);
+        components[0] = address(tokenA);
+        components[1] = address(tokenB);
 
         uint256[] memory votes = new uint256[](2);
         votes[0] = 30 ether;
@@ -263,8 +271,8 @@ contract ApeRebalanceExtensionTest is DSTest {
 
         uint256 setValue = 50 ether;
         address[] memory finalComponents = new address[](2);
-        finalComponents[0] = address(0x2);
-        finalComponents[1] = address(0x1);
+        finalComponents[0] = address(tokenB);
+        finalComponents[1] = address(tokenA);
         uint256[] memory prices = new uint256[](2);
         prices[0] = 17 ether;
         prices[1] = 3.1415926535 ether;

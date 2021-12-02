@@ -12,6 +12,7 @@ import "setprotocol/contracts/interfaces/external/IUniswapV2Factory.sol";
 
 import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "@openzeppelin/contracts/math/Math.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "./OwlNFT.sol";
 
@@ -26,6 +27,7 @@ contract ApeRebalanceExtension is GIMExtension {
     using PreciseUnitMath for uint256;
     using SafeCast for uint256;
     using SafeCast for int256;
+    using SafeCast for uint8;
 
     /* ========== State Variables ======== */
 
@@ -137,7 +139,9 @@ contract ApeRebalanceExtension is GIMExtension {
             require(finalComponents[i] == _components[i], "component mismatch");
 
             // (weight/// total) / price
-            units[i] = _setValue.preciseMul(weights[i]).preciseDiv(_componentPrices[i]);
+            uint256 decimals =  ERC20(finalComponents[i]).decimals();
+            uint256 decimalAdjust = 10**(uint(18).sub(decimals));
+            units[i] = _setValue.preciseMul(weights[i]).preciseDiv(_componentPrices[i]).div(decimalAdjust);
         }
 
         address[] memory currentComponents = setToken.getComponents();
