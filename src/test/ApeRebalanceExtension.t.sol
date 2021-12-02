@@ -94,7 +94,7 @@ contract ApeRebalanceExtensionTest is DSTest {
         setToken.setManager(address(baseManager));
         baseManager.authorizeInitialization();
 
-        nft = new OwlNFT();
+        nft = new OwlNFT("example.com/");
 
         sushiFactory = new UniFactoryMock(address(0x7));
         quickFactory = new UniFactoryMock(address(0x8));
@@ -103,6 +103,17 @@ contract ApeRebalanceExtensionTest is DSTest {
         setFixture.weth().deposit{value: 50 ether}();
         setFixture.weth().transfer(address(0x7), 7 ether);
         setFixture.weth().transfer(address(0x8), 3 ether);
+
+        setFixture.integrationRegistry().addIntegration(
+            address(setFixture.generalIndexModule()),
+            "SushiswapIndexExchangeAdapter",
+            address(0x10)
+        );
+        setFixture.integrationRegistry().addIntegration(
+            address(setFixture.generalIndexModule()),
+            "QuickswapIndexExchangeAdapter",
+            address(0x11)
+        );
 
         apeExtension = new ApeRebalanceExtension(
             IBaseManager(address(baseManager)),
@@ -360,5 +371,22 @@ contract ApeRebalanceExtensionTest is DSTest {
         assertEq(apeExtension.getVotes(address(voterA)), 100 ether);
         assertEq(apeExtension.getVotes(address(voterB)), 75 ether);
         assertEq(apeExtension.getVotes(address(voterC)), 0);
+    }
+
+    function test_setExchanges() public {
+        address[] memory components = new address[](2);
+        components[0] = address(0x1);
+        components[1] = address(0x2);
+
+        uint256[] memory votes = new uint256[](2);
+        votes[0] = 30 ether;
+        votes[1] = 60 ether;
+
+        voterA.vote(components, votes);
+
+        apeExtension.setExchanges();
+
+        (,,,,string memory exchange,) = setFixture.generalIndexModule().executionInfo(ISetTokenSet(address(setToken)), IERC20(0x1));
+        assertEq(exchange, "SushiswapIndexExchangeAdapter");
     }
 }
